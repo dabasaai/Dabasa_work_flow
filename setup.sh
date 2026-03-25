@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "=== Dabasa 新設備一鍵部署 ==="
+echo ""
+
+# ---------- 1. 基本工具檢查 ----------
+check_cmd() {
+  if ! command -v "$1" &>/dev/null; then
+    echo "❌ 未找到 $1，正在安裝..."
+    return 1
+  else
+    echo "✅ $1 已安裝"
+    return 0
+  fi
+}
+
+# 安裝 Homebrew（macOS）或確認套件管理器
+if [[ "$(uname)" == "Darwin" ]]; then
+  if ! check_cmd brew; then
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  fi
+fi
+
+# 安裝 gh CLI
+if ! check_cmd gh; then
+  if [[ "$(uname)" == "Darwin" ]]; then
+    brew install gh
+  elif command -v apt &>/dev/null; then
+    sudo apt update && sudo apt install -y gh
+  elif command -v dnf &>/dev/null; then
+    sudo dnf install -y gh
+  else
+    echo "❌ 無法自動安裝 gh，請手動安裝: https://cli.github.com/"
+    exit 1
+  fi
+fi
+
+# 安裝 screen
+if ! check_cmd screen; then
+  if [[ "$(uname)" == "Darwin" ]]; then
+    brew install screen
+  elif command -v apt &>/dev/null; then
+    sudo apt install -y screen
+  fi
+fi
+
+# ---------- 2. GitHub 認證 ----------
+echo ""
+echo "--- GitHub 認證 ---"
+if gh auth status &>/dev/null; then
+  echo "✅ 已登入 GitHub"
+else
+  echo "請登入 GitHub..."
+  gh auth login
+fi
+gh auth setup-git
+echo "✅ Git 認證已設定"
+
+# ---------- 3. 安裝 gm (github_menu) ----------
+echo ""
+echo "--- 安裝 gm ---"
+if command -v gm &>/dev/null; then
+  echo "✅ gm 已安裝"
+else
+  echo "安裝 github_menu..."
+  curl -fsSL https://raw.githubusercontent.com/dabasaai/github_menu/main/install.sh | bash
+fi
+
+# ---------- 4. 建立工作目錄並部署 claude-here ----------
+echo ""
+echo "--- 部署 claude-here ---"
+WORK_DIR="$HOME/Developer/Dabasa_work_flow"
+mkdir -p "$WORK_DIR"
+cd "$WORK_DIR"
+
+if [[ -d "claude-here" ]]; then
+  echo "✅ claude-here 已存在，更新中..."
+  cd claude-here && git pull && cd ..
+else
+  gh repo clone dabasaai/claude-here
+fi
+
+cd claude-here
+bash install.sh
+cd "$WORK_DIR"
+
+# ---------- 5. 安裝 Claude Code CLI ----------
+echo ""
+echo "--- Claude Code ---"
+if command -v claude &>/dev/null; then
+  echo "✅ claude 已安裝"
+else
+  echo "安裝 Claude Code..."
+  if command -v npm &>/dev/null; then
+    npm install -g @anthropic-ai/claude-code
+  else
+    echo "⚠ 未找到 npm，請先安裝 Node.js 再手動執行："
+    echo "  npm install -g @anthropic-ai/claude-code"
+  fi
+fi
+
+# ---------- 完成 ----------
+echo ""
+echo "========================================="
+echo "  ✅ 部署完成！"
+echo "========================================="
+echo ""
+echo "  使用方式："
+echo "    gm          — 選擇/clone GitHub 專案"
+echo "    claude-here  — 在專案目錄啟動 Claude"
+echo ""
+echo "  如果是新終端，請先執行："
+echo "    source ~/.zshrc"
+echo ""

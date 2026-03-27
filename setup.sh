@@ -57,30 +57,27 @@ fi
 gh auth setup-git
 echo "✅ Git 認證已設定"
 
-# ---------- 3. 安裝 gm (github_menu) ----------
+# ---------- 3. 安裝/更新 gm (github_menu) ----------
 echo ""
 echo "--- 安裝 gm ---"
-if command -v gm &>/dev/null; then
-  echo "✅ gm 已安裝"
-else
-  echo "安裝 github_menu..."
-  INSTALL_DIR="$HOME/.local/bin"
-  mkdir -p "$INSTALL_DIR"
-  curl -fsSL https://raw.githubusercontent.com/dabasaai/github_menu/main/gm -o "$INSTALL_DIR/gm"
-  chmod +x "$INSTALL_DIR/gm"
+INSTALL_DIR="$HOME/.local/bin"
+mkdir -p "$INSTALL_DIR"
 
-  PATH_LINE='export PATH="$HOME/.local/bin:$PATH"'
-  for rc_file in "$HOME/.bashrc" "$HOME/.zshrc"; do
-    if [[ -f "$rc_file" ]] && ! grep -qF '.local/bin' "$rc_file"; then
-      echo "" >> "$rc_file"
-      echo "# gm (github_menu)" >> "$rc_file"
-      echo "$PATH_LINE" >> "$rc_file"
-      echo "已將 PATH 加入 $rc_file"
-    fi
-  done
-  export PATH="$INSTALL_DIR:$PATH"
-  echo "✅ gm 安裝完成"
-fi
+echo "下載最新版 gm..."
+curl -fsSL https://raw.githubusercontent.com/dabasaai/github_menu/main/github_menu.py -o "$INSTALL_DIR/gm"
+chmod +x "$INSTALL_DIR/gm"
+
+PATH_LINE='export PATH="$HOME/.local/bin:$PATH"'
+for rc_file in "$HOME/.bashrc" "$HOME/.zshrc"; do
+  if [[ -f "$rc_file" ]] && ! grep -qF '.local/bin' "$rc_file"; then
+    echo "" >> "$rc_file"
+    echo "# gm (github_menu)" >> "$rc_file"
+    echo "$PATH_LINE" >> "$rc_file"
+    echo "已將 PATH 加入 $rc_file"
+  fi
+done
+export PATH="$INSTALL_DIR:$PATH"
+echo "✅ gm 已安裝（最新版）"
 
 # ---------- 4. 建立工作目錄並部署 claude-here ----------
 echo ""

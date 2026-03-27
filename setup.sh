@@ -51,8 +51,14 @@ echo "--- GitHub 認證 ---"
 if gh auth status &>/dev/null; then
   echo "✅ 已登入 GitHub"
 else
-  echo "請登入 GitHub..."
-  gh auth login
+  echo ""
+  echo "⚠ 尚未登入 GitHub！"
+  echo "  請先手動執行以下指令完成登入，再重新執行此腳本："
+  echo ""
+  echo "    gh auth login"
+  echo ""
+  echo "  （無圖形介面的機器建議選擇 Paste an authentication token）"
+  exit 1
 fi
 gh auth setup-git
 echo "✅ Git 認證已設定"
@@ -64,7 +70,24 @@ if command -v gm &>/dev/null; then
   echo "✅ gm 已安裝"
 else
   echo "安裝 github_menu..."
-  curl -fsSL https://raw.githubusercontent.com/dabasaai/github_menu/main/install.sh | bash
+  # 下載 gm 並直接安裝，跳過 installer 內的 gh auth 檢查
+  INSTALL_DIR="$HOME/.local/bin"
+  mkdir -p "$INSTALL_DIR"
+  curl -fsSL https://raw.githubusercontent.com/dabasaai/github_menu/main/gm -o "$INSTALL_DIR/gm"
+  chmod +x "$INSTALL_DIR/gm"
+
+  # 確保 PATH 包含 ~/.local/bin
+  PATH_LINE='export PATH="$HOME/.local/bin:$PATH"'
+  for rc_file in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    if [[ -f "$rc_file" ]] && ! grep -qF '.local/bin' "$rc_file"; then
+      echo "" >> "$rc_file"
+      echo "# gm (github_menu)" >> "$rc_file"
+      echo "$PATH_LINE" >> "$rc_file"
+      echo "已將 PATH 加入 $rc_file"
+    fi
+  done
+  export PATH="$INSTALL_DIR:$PATH"
+  echo "✅ gm 安裝完成"
 fi
 
 # ---------- 4. 建立工作目錄並部署 claude-here ----------

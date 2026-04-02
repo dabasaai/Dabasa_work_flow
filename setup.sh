@@ -27,6 +27,8 @@ if ! check_cmd gh; then
   if [[ "$(uname)" == "Darwin" ]]; then
     brew install gh
   elif command -v apt &>/dev/null; then
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
     sudo apt update && sudo apt install -y gh
   elif command -v dnf &>/dev/null; then
     sudo dnf install -y gh

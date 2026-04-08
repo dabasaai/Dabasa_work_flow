@@ -121,13 +121,24 @@ fi
 cd telegram_notify && bash install.sh && cd "$WORK_DIR"
 echo "✅ tg-notify 已安裝"
 
-# 提醒設定 .env
-if [[ ! -f "$HOME/.telegram_notify.env" ]] && [[ ! -f "$WORK_DIR/telegram_notify/.env" ]]; then
+# 互動式設定 Telegram 環境變數
+TG_ENV_FILE="$WORK_DIR/telegram_notify/.env"
+if [[ ! -f "$TG_ENV_FILE" ]]; then
   echo ""
-  echo "  ⚠ 記得設定 Telegram 環境變數："
-  echo "    TELEGRAM_BOT_TOKEN=你的bot_token"
-  echo "    TELEGRAM_CHAT_ID=你的chat_id"
-  echo "    （寫入 ~/.bashrc 或 .env 檔案）"
+  echo "  設定 Telegram 通知..."
+  read -rp "  TELEGRAM_BOT_TOKEN: " TG_BOT_TOKEN
+  read -rp "  TELEGRAM_CHAT_ID: " TG_CHAT_ID
+  if [[ -n "$TG_BOT_TOKEN" && -n "$TG_CHAT_ID" ]]; then
+    cat > "$TG_ENV_FILE" <<TGEOF
+TELEGRAM_BOT_TOKEN=$TG_BOT_TOKEN
+TELEGRAM_CHAT_ID=$TG_CHAT_ID
+TGEOF
+    echo "  ✅ 已寫入 $TG_ENV_FILE"
+  else
+    echo "  ⚠ 跳過（之後請手動編輯 $TG_ENV_FILE）"
+  fi
+else
+  echo "  ✅ Telegram 設定已存在"
 fi
 
 # ---------- 6. claudehook-notion ----------

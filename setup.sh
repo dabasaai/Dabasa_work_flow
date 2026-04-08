@@ -15,6 +15,24 @@ check_cmd() {
   fi
 }
 
+ensure_path() {
+  local dir="$1"
+  PATH_LINE="export PATH=\"$dir:\$PATH\""
+  for rc_file in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    if [[ -f "$rc_file" ]] && ! grep -qF "$dir" "$rc_file"; then
+      echo "" >> "$rc_file"
+      echo "$PATH_LINE" >> "$rc_file"
+      echo "  已將 $dir 加入 $rc_file"
+    fi
+  done
+  export PATH="$dir:$PATH"
+}
+
+INSTALL_DIR="$HOME/.local/bin"
+mkdir -p "$INSTALL_DIR"
+WORK_DIR="$HOME/Developer/Dabasa_work_flow"
+mkdir -p "$WORK_DIR"
+
 # 安裝 Homebrew（macOS）
 if [[ "$(uname)" == "Darwin" ]]; then
   if ! check_cmd brew; then
@@ -35,6 +53,15 @@ if ! check_cmd gh; then
   else
     echo "❌ 無法自動安裝 gh，請手動安裝: https://cli.github.com/"
     exit 1
+  fi
+fi
+
+# 安裝 jq（claudehook-notion 需要）
+if ! check_cmd jq; then
+  if [[ "$(uname)" == "Darwin" ]]; then
+    brew install jq
+  elif command -v apt &>/dev/null; then
+    sudo apt install -y jq
   fi
 fi
 
@@ -59,47 +86,64 @@ fi
 gh auth setup-git
 echo "✅ Git 認證已設定"
 
-# ---------- 3. 安裝/更新 gm (github_menu) ----------
+# ---------- 3. gm (github_menu) ----------
 echo ""
 echo "--- 安裝 gm ---"
-INSTALL_DIR="$HOME/.local/bin"
-mkdir -p "$INSTALL_DIR"
-
 echo "下載最新版 gm..."
 curl -fsSL https://raw.githubusercontent.com/dabasaai/github_menu/main/github_menu.py -o "$INSTALL_DIR/gm"
 chmod +x "$INSTALL_DIR/gm"
-
-PATH_LINE='export PATH="$HOME/.local/bin:$PATH"'
-for rc_file in "$HOME/.bashrc" "$HOME/.zshrc"; do
-  if [[ -f "$rc_file" ]] && ! grep -qF '.local/bin' "$rc_file"; then
-    echo "" >> "$rc_file"
-    echo "# gm (github_menu)" >> "$rc_file"
-    echo "$PATH_LINE" >> "$rc_file"
-    echo "已將 PATH 加入 $rc_file"
-  fi
-done
-export PATH="$INSTALL_DIR:$PATH"
+ensure_path "$INSTALL_DIR"
 echo "✅ gm 已安裝（最新版）"
 
-# ---------- 4. 建立工作目錄並部署 claude-here ----------
+# ---------- 4. claude-here ----------
 echo ""
 echo "--- 部署 claude-here ---"
-WORK_DIR="$HOME/Developer/Dabasa_work_flow"
-mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"
-
 if [[ -d "claude-here" ]]; then
-  echo "✅ claude-here 已存在，更新中..."
+  echo "更新中..."
   cd claude-here && git pull && cd ..
 else
   gh repo clone dabasaai/claude-here
 fi
+cd claude-here && bash install.sh && cd "$WORK_DIR"
+echo "✅ claude-here 已安裝"
 
-cd claude-here
-bash install.sh
+# ---------- 5. telegram_notify ----------
+echo ""
+echo "--- 部署 telegram_notify ---"
 cd "$WORK_DIR"
+if [[ -d "telegram_notify" ]]; then
+  echo "更新中..."
+  cd telegram_notify && git pull && cd "$WORK_DIR"
+else
+  gh repo clone dabasaai/telegram_notify
+fi
+cd telegram_notify && bash install.sh && cd "$WORK_DIR"
+echo "✅ tg-notify 已安裝"
 
-# ---------- 5. 安裝 Claude Code CLI ----------
+# 提醒設定 .env
+if [[ ! -f "$HOME/.telegram_notify.env" ]] && [[ ! -f "$WORK_DIR/telegram_notify/.env" ]]; then
+  echo ""
+  echo "  ⚠ 記得設定 Telegram 環境變數："
+  echo "    TELEGRAM_BOT_TOKEN=你的bot_token"
+  echo "    TELEGRAM_CHAT_ID=你的chat_id"
+  echo "    （寫入 ~/.bashrc 或 .env 檔案）"
+fi
+
+# ---------- 6. claudehook-notion ----------
+echo ""
+echo "--- 部署 claudehook-notion ---"
+cd "$WORK_DIR"
+if [[ -d "claudehook-notion" ]]; then
+  echo "更新中..."
+  cd claudehook-notion && git pull && cd "$WORK_DIR"
+else
+  gh repo clone dabasaai/claudehook-notion
+fi
+cd claudehook-notion && bash deploy.sh && cd "$WORK_DIR"
+echo "✅ claudehook-notion 已安裝"
+
+# ---------- 7. Claude Code CLI ----------
 echo ""
 echo "--- Claude Code ---"
 if command -v claude &>/dev/null; then
@@ -117,12 +161,15 @@ fi
 # ---------- 完成 ----------
 echo ""
 echo "========================================="
-echo "  ✅ 部署完成！"
+echo "  ✅ 全部部署完成！"
 echo "========================================="
 echo ""
-echo "  使用方式："
-echo "    gm          — 選擇/clone GitHub 專案"
-echo "    claude-here  — 在專案目錄啟動 Claude"
+echo "  已安裝工具："
+echo "    gm           — GitHub 專案選擇器"
+echo "    claude-here   — 在專案目錄啟動 Claude"
+echo "    tg-notify     — Telegram 通知"
+echo "    claudehook    — Claude Code → Notion 任務記錄"
+echo "    claude        — Claude Code CLI"
 echo ""
 echo "  如果是新終端，請先執行："
 echo "    source ~/.bashrc  # 或 source ~/.zshrc"
